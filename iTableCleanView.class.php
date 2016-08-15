@@ -23,8 +23,8 @@ interface iTableCleanView {
 	 *           specified element
 	 *
 	 * @param string $element Name of element classes are to be
-	 *               applied to
-	 * @return string, array $classes space separated list of class
+	 *               applied to element
+	 * @param string, array $classes space separated list of class
 	 *               names to be applied
 	 *
 	 * @return void
@@ -42,4 +42,12 @@ interface iTableCleanView {
 	 * @return string HTML with clean accessible tables.
 	 */
 	public function render_table($table_array);
+
+	/**
+	 * @function clean_tables() rewrites the HTML for each table in
+	 *           the input HTML
+	 *
+	 * @param string $table_caption caption text to be applied to table
+	 */
+	public function set_caption($table_caption);
 }

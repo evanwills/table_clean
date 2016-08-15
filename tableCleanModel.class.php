@@ -16,9 +16,12 @@ class tableClean implements iTableClean {
 
 	protected $table_count = 0;
 
-	const TABLE_REGEX = '`<table[^<]*>(.*?)</table>`is';
+	const TABLE_REGEX = '`<table([^<]*)>(.*?)</table>`is';
 	const ROW_REGEX = '`<tr[^<]*>(.*?)</tr>`is';
 	const CELL_REGEX = '`<t([hd])[^<]*>(.*?)</t\1>`is';
+	const SUMMARY_REGEX = '`\s+summary=("|\')?((?(1).*?(?=\1)|.*?(?=[\s>])))`is';
+	const CAPTION_REGEX = '`<caption[^>]*>(.*?)</caption>`is';
+
 
 
 	//  END:  properties
@@ -26,41 +29,21 @@ class tableClean implements iTableClean {
 	// START: public methods
 
 
+	public function __construct( iTableCleanView $view ) {
+		$this->view = $view;
+	}
+
+
 	public function clean_tables($html) {
 		if( !is_string($html) ) {
 			throw get_class($this).'::clean_tables() expects only parameter $html to be a string. '.gettype($html).' given!';
 		}
-		return preg_replace_callback( self::TABLE_REGEX, array($this, 'CLEAN_TABLES_CALLBACK') , $html );
-	}
 
-
-	public function set_classes($element, $classes) {
-		if( !is_string($element) ) {
-			throw get_class($this).'::set_classes() expects first parameter $element to be a string. '.gettype($element).' given!';
-		}
-		if( !property_exists($this,$element) ) {
-			throw get_class($this).'::set_classes() expects first parameter $element to be astring matching: "table", "thead", "tbody", "tfoot", "columns" or "rows". "'.$element.'" given';
-		}
-		if( gettype($classes) !== gettype($this->$element)) {
-			throw get_class($this).'::set_classes() expects second parameter $classes to be a '.gettype($classes).' variable. '.gettype($element).' given';
-		}
-
-		if( $element === 'columns' || $element === 'rows' ) {
-			$this->set_array_classes($element, $classes);
-		} else {
-			$this->set_string_classes($element, $classes);
-		}
-	}
-
-
-	public function get_classes($element) {
-		if( !is_string($element) ) {
-			throw get_class($this).'::get_classes() expects first parameter to be a string. '.gettype($element).' given!';
-		}
-		if( !property_exists($this,$element) ) {
-			throw get_class($this).'::get_classes() expects first parameter string matching: "table", "thead", "tbody", "tfoot", "columns" or "rows". "'.$element.'" given';
-		}
-		return $this->$element;
+		return preg_replace_callback(
+			 self::TABLE_REGEX
+			,array($this, 'CLEAN_TABLES_CALLBACK')
+			,$html
+		);
 	}
 
 
@@ -72,61 +55,42 @@ class tableClean implements iTableClean {
 
 
 	protected function CLEAN_TABLES_CALLBACK($matches) {
-		$this->table_count += 1;
+		$table_array = array();
 
-
-		$table_ID = "T{$this->table_count}_";
-
-
-		if( preg_match_all('`<tr[^>]*>\s*(.*?)\s*</tr>`is', $matches, $rows , PREG_SET_ORDER) ) {
-
+		if( preg_match(self::SUMMARY_REGEX,$matches[1],$summary) ) {
+			$this->view->set_summary($summary[2], true);
 		}
-	}
 
+		if( preg_match(self::CAPTION_REGEX,$matches[2],$caption) ) {
+			$this->view->set_caption($caption[1], true);
+			$matches[2] = str_replace( $caption[0] , '' , $matches[2] );
+		}
 
-	protected function set_array_classes($element, $classes) {
-		for( $a = 0 ; $a < count($classes) ; $a += 1 ) {
-			if( is_bool($classes[$a]) ) {
-				$this->$element[] = $classes[$a];
-			} elseif( $classes[$a] == 0 ) {
-				$this->$element[] = false;
-			} elseif( $classes[$a] == 1 || $classes[$a] == '' ) {
-				$this->$element[] = true;
-			} elseif( is_string($classes[$a]) ) {
-				$tmp = $this->validate_classes_string($classes[$a]);
-				if( $tmp === '' ) {
-					throw get_class($this).'::set_classes() second parameter $classes to be an array containing only valid HTML class names. $classes['.$a.'] ("'.$classes[$a].'") contains invalid class names';
+		if( preg_match_all(
+			 self::ROW_REGEX
+			,$matches[2]
+			,$rows
+			,PREG_SET_ORDER)
+		  ) {
+			for( $a = 0 ; $a < count($rows) ; $a += 1 ) {
+				if( preg_match_all(
+					 self::CELL_REGEX
+					,$rows[$a]
+					,$cells
+					,PREG_SET_ORDER
+				  ) ) {
+					$tmp = array();
+					for( $b = 0 ; $b < count($cells) ; $b += 1 ) {
+						$tmp[] = $cells[$b][2];
+					}
+					$table_array[] = $tmp;
 				}
-				$this->$element[] = $tmp;
-			} else {
-				throw get_class($this).'::set_classes() second parameter $classes to be an array containing only boolean or string values. $classes['.$a.'] is a '.gettype($classes[$a]);
 			}
+			return $this->view->render_table($table_array);
 		}
+		return $this->matches[0];
 	}
 
-
-	protected function set_string_classes($element, $classes) {
-		$tmp = $this->validate_classes_string($classes);
-		if( $tmp === '' ) {
-			throw get_class($this).'::set_classes() second parameter $classes to be an string containing only valid HTML class names. "'.$classes.'" contains invalid class names';
-		}
-		$this->$element = $tmp;
-	}
-
-
-	protected function validate_classes_string($input) {
-		$input = trim($input);
-		$input = preg_split('`\s+`', $input, PREG_SPLIT_NO_EMPTY);
-		if( empty($input) ) {
-			return '';
-		}
-		for( $a = 0 ; $a < count($input) ; $a += 1 ) {
-			if( !preg_match( '`^[a-z][a-z0-9_\-]+$`i', $input[$a] ) ) {
-				return '';
-			}
-		}
-		return implode(' ', $input);
-	}
 
 
 	//  END:  protected methods
