@@ -231,6 +231,8 @@ class tableCleanView {
 			$row_ID = '';
 			$z = 0;
 
+			$row = $this->sanitise_row($row);
+
 			$output = '<tr';
 			if( isset($this->row_classes[$i]) && $this->row_classes[$i] !== false ) {
 				$output .= ' class="';
@@ -322,6 +324,15 @@ class tableCleanView {
 			}
 		}
 		return implode(' ', $output);
+	}
+
+	/**
+	 * to be overwritten by child classes to do stuff (who knows what) that might be necessary
+	 * @param  array $row cells in the given row
+	 * @return array parsed cells
+	 */
+	protected function sanitise_row($row) {
+		return $row;
 	}
 
 
