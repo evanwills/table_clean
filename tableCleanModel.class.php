@@ -28,39 +28,40 @@ class tableClean {
 
 		if( preg_match_all( self::TABLE_REGEX , $html , $tables , PREG_SET_ORDER ) ) {
 			for( $a = 0 ; $a < count($tables) ; $a += 1 ) {
-				$table = array(
-					'caption' => '',
-					'summary' => '',
-					'tfoot' => '',
-					'rows' => array(),
-					'find' => $tables[$a][0]
-				);
+				$caption = '',
+				$summary = '',
+				$tfoot = '',
+				$rows = array(),
+				$find = $tables[$a][0]
 
-				if( preg_match( self::SUMMARY_REGEX , $tables[$a][1] , $summary ) ) {
-					$table['summary'] = $summary[2];
+				if( preg_match( self::SUMMARY_REGEX , $tables[$a][1] , $matched_summary ) ) {
+					$summary = $matched_summary[2];
+					unset($matched_summary)
 				}
 
-				if( preg_match( self::TFOOT_REGEX , $tables[$a][2] , $tfoot ) ) {
-					$table['tfoot'] = $tfoot[1];
-					$tables[$a][2] = str_replace( $tfoot[0] , '' , $tables[$a][2] );
+				if( preg_match( self::TFOOT_REGEX , $tables[$a][2] , $matched_tfoot ) ) {
+					$tfoot = $matched_tfoot[1];
+					$tables[$a][2] = str_replace( $matched_tfoot[0] , '' , $tables[$a][2] );
+					unset($matched_tfoot)
 				}
 
-				if( preg_match( self::CAPTION_REGEX , $tables[$a][2] , $caption ) ) {
-					$table['caption'] = $caption[1];
-					$tables[$a][2] = str_replace( $caption[0] , '' , $tables[$a][2] );
+				if( preg_match( self::CAPTION_REGEX , $tables[$a][2] , $matched_caption ) ) {
+					$caption = $matched_caption[1];
+					$tables[$a][2] = str_replace( $matched_caption[0] , '' , $tables[$a][2] );
+					unset($matched_caption)
 				}
 
 
 				if( preg_match_all(
 					 self::ROW_REGEX
 					,$matches[2]
-					,$rows
+					,$matched_rows
 					,PREG_SET_ORDER)
 				  ) {
 					for( $a = 0 ; $a < count($rows) ; $a += 1 ) {
 						if( preg_match_all(
 							 self::CELL_REGEX
-							,$rows[$a]
+							,$matched_rows[$a]
 							,$cells
 							,PREG_SET_ORDER
 						  ) ) {
@@ -68,11 +69,11 @@ class tableClean {
 							for( $b = 0 ; $b < count($cells) ; $b += 1 ) {
 								$tmp[] = $cells[$b][2];
 							}
-							$table['rows'][] = $tmp;
+							$rows[] = $tmp;
 						}
 					}
 				}
-				$this->tables[] = $table;
+				$this->tables[] = new tableCleanTableObj($find,$rows,$summary,$caption,$tfoot);
 			}
 		}
 	}

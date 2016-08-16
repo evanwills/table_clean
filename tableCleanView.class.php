@@ -15,6 +15,7 @@ class tableCleanView {
 
 	protected $caption = '';
 	protected $summary = '';
+	protected $tfoot = '';
 
 	protected $last_row_is_footer = false;
 	protected $first_row_is_header = true;
@@ -26,6 +27,7 @@ class tableCleanView {
 	protected $column_classes = array();
 	protected $rows_classes = array();
 	protected $col_count = 0;
+	protected $row_count = 0;
 
 	protected $table_ID = '';
 
@@ -69,38 +71,21 @@ class tableCleanView {
 	}
 
 
-	public function render_table( $table_array ) {
-		if( !is_array($table_array) ) {
-			throw  new Exception(get_class($this).'::render_tables() expects only parameter $table_array to be an array. '.gettype($table_array).' given!');
-		}
-		if( !isset($table_array['summary']) && !isset($table_array['caption']) && !isset($table_array['rows']) && !isset($table_array['tfoot']) ) {
-			throw  new Exception(get_class($this).'::render_tables() expects only parameter $table_array to be an array with the following key/value pairs: "summary", "caption", "rows" & "tfoot"');
-		}
-		if( !is_array($table_array['rows']) ) {
-			throw  new Exception(get_class($this).'::render_tables() expects $table_array[rows] to be an array. '.gettype($table_array['rows']).' given!');
+	public function render_table( tableCleanTableObj $table ) {
 
-		}
-		if( !is_string($table_array['summary']) && !is_string($table_array['caption']) && !is_string($table_array['tfoot']) ) {
-			throw  new Exception(get_class($this).'::render_tables() expects $table_array[summary], $table_array[caption] & $table_array[tfoot]to be strings.');
-		}
-
-		$footer = array();
-		if( $this->last_row_is_footer === true ) {
-			$footer = array_pop($table_array);
-		}
 		$output = '<table';
 		if( $this->table_classes !== '' ) {
 			$output .= ' class="'.$this->table_classes.'"';
 		}
-		$output .=	 $this->render_summary( $table_array['summary'] , count($table_array[0]) , count($table_array) )
+		$output .=	 $this->render_summary( $table->get_summary() , $table->get_col_count() , $table->get_row_count() )
 					.'>'
-					.$this->render_caption( $table_array['caption'] )
-					.$this->render_thead( $table_array['rows'] )
-					.$this->render_tfoot( $footer , $table_array['tfoot'] , $table_array['rows'] );
+					.$this->render_caption( $table->get_caption() )
+					.$this->render_thead( $table )
+					.$this->render_tfoot( $table->get_tfoot() , $table );
 
 		$output .= '<tbody>';
-		for( $a = 0 ; $a < count($table_array) ; $a += 1 ) {
-			$output .= $this->render_row($table_array[$a]);
+		while( $row = $table->get_next_row() ) {
+			$output .= $this->render_row($row);
 		}
 		$output .= '</tbody></table>';
 
@@ -160,13 +145,13 @@ class tableCleanView {
 	}
 
 
-	protected function render_thead(&$table_array) {
+	protected function render_thead( $table ) {
 		$this->col_count = count($header);
 
 		$output = '';
 		if( $this->first_row_is_header !== false ) {
 
-			$header = array_shift($table_array);
+			$header = $table->get_next_row();
 
 			$output = '<thead';
 			if( $this->thead_classes !== '' ) {
@@ -194,28 +179,37 @@ class tableCleanView {
 	}
 
 
-	protected function render_tfoot($footer , $tfoot , $table_array) {
+	protected function render_tfoot($tfoot , $table) {
 		$output = '';
-		if( !empty($footer) ) {
+
+		if( $tfoot !== '' ) {
+			$footer = $tfoot;
+		} elseif( $this->last_row_is_footer === true ) {
+			$footer = $table->get_last_row();
+		} else {
+			$footer = $this->tfoot;
+		}
+
+		if( $footer !== '' ) {
 			$output .= '<tfoot';
 			if( $this->tfoot_classes !== '' ) {
 				$output .= ' class="'.$this->tfoot_classes.'"';
 			}
 			$output .= '><tr>';
 			$z = 0;
-			$rowID = '';
+			$row_ID = '';
 
 			if( $this->no_row_header === false ) {
-				$rowID = $this->$table_ID.'r'.$i;
+				$row_ID = $this->$table_ID.'r'.$i;
 				if()
-				$output .= '<th id="'.$rowID.'" headers="'.$this->$table_ID.'h0"'.$this->get_cell_classes(0).'>'.$row[0].'</th>';
+				$output .= '<th id="'.$row_ID.'" headers="'.$this->$table_ID.'h0"'.$this->get_cell_classes(0).'>'.$row[0].'</th>';
 				$z = 1;
 			}
 
 			$c = count($row);
 			for( $a = $z ; $a < $c ; $a += 1 ) {
 				$output .= '<td'
-						.$this->get_cell_headers( $a , $rowID )
+						.$this->get_cell_headers( $a , $row_ID )
 						.$this->get_cell_classes($a)
 						.$this->get_colspan( $a , $c )
 						.'>'
@@ -228,9 +222,13 @@ class tableCleanView {
 	}
 
 
-	protected function render_row($row, $i) {
+	protected function render_row($row) {
 		$output = '';
 		if( !empty($row) ) {
+			$this->row_count += 1;
+
+			$i = $this->row_count;
+			$row_ID = '';
 			$z = 0;
 
 			$output = '<tr';
@@ -245,20 +243,19 @@ class tableCleanView {
 			}
 			$output .= '>';
 
-			$rowID = '';
 
 			if( $this->use_row_header !== false ) {
-				$rowID = $this->$table_ID.'r'.$i;
-				$output .= '<th id="'.$rowID.'"'.$this->get_cell_headers(0).$this->get_cell_classes(0).'>'.$row[0].'</th>';
+				$row_ID = $this->$table_ID.'r'.$i;
+				$output .= '<th id="'.$row_ID.'"'.$this->get_cell_headers(0).$this->get_cell_classes(0).'>'.$row[0].'</th>';
 				$z = 1;
 			}
 
-			$c = count($row);
-			for( $a = $z ; $a < $c ; $a += 1 ) {
+			$cell_count = count($row);
+			for( $a = $z ; $a < $cell_count ; $a += 1 ) {
 				$output .= '<td'
-						.$this->get_cell_headers( $a , $rowID )
+						.$this->get_cell_headers( $a , $row_ID )
 						.$this->get_cell_classes($a)
-						.$this->get_colspan( $a , $c )
+						.$this->get_colspan( $a , $cell_count )
 						.'>'
 						.trim($row[$a])
 						.'</td>';
@@ -388,11 +385,11 @@ class tableCleanView {
 		return '';
 	}
 
-	protected function get_cell_headers($i, $rowID = '') {
-		if( $rowID !== '' ) {
-			$rowID = trim($rowID).' ';
+	protected function get_cell_headers($i, $row_ID = '') {
+		if( $row_ID !== '' ) {
+			$row_ID = trim($row_ID).' ';
 		}
-		return ' headers="'.$rowID.$this->$table_ID.'h'.$i.'"';
+		return ' headers="'.$row_ID.$this->$table_ID.'h'.$i.'"';
 	}
 
 
