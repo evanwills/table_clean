@@ -1,26 +1,18 @@
 <?php
 
-class tableClean implements iTableClean {
+class tableClean {
 
 	// ==============================================================
 	// START: properties
 
-	protected $view = null;
-
-	protected $table = '';
-	protected $thead = '';
-	protected $tbody = '';
-	protected $tfoot = '';
-	protected $columns = array();
-	protected $rows = array();
-
-	protected $table_count = 0;
+	protected $tables = array();
 
 	const TABLE_REGEX = '`<table([^<]*)>(.*?)</table>`is';
 	const ROW_REGEX = '`<tr[^<]*>(.*?)</tr>`is';
 	const CELL_REGEX = '`<t([hd])[^<]*>(.*?)</t\1>`is';
 	const SUMMARY_REGEX = '`\s+summary=("|\')?((?(1).*?(?=\1)|.*?(?=[\s>])))`is';
 	const CAPTION_REGEX = '`<caption[^>]*>(.*?)</caption>`is';
+	const TFOOT_REGEX = '`<tfoot[^>]*>(.*?)</tfoot>`is';
 
 
 
@@ -29,21 +21,69 @@ class tableClean implements iTableClean {
 	// START: public methods
 
 
-	public function __construct( iTableCleanView $view ) {
-		$this->view = $view;
+	public function __construct($html) {
+		if( !is_string($html) ) {
+			throw new Exception(get_class($this).'::__construct() expects only parameter $html to be a string. '.gettype($html).' given!');
+		}
+
+		if( preg_match_all( self::TABLE_REGEX , $html , $tables , PREG_SET_ORDER ) ) {
+			for( $a = 0 ; $a < count($tables) ; $a += 1 ) {
+				$table = array(
+					'caption' => '',
+					'summary' => '',
+					'tfoot' => '',
+					'rows' => array(),
+					'find' => $tables[$a][0]
+				);
+
+				if( preg_match( self::SUMMARY_REGEX , $tables[$a][1] , $summary ) ) {
+					$table['summary'] = $summary[2];
+				}
+
+				if( preg_match( self::TFOOT_REGEX , $tables[$a][2] , $tfoot ) ) {
+					$table['tfoot'] = $tfoot[1];
+					$tables[$a][2] = str_replace( $tfoot[0] , '' , $tables[$a][2] );
+				}
+
+				if( preg_match( self::CAPTION_REGEX , $tables[$a][2] , $caption ) ) {
+					$table['caption'] = $caption[1];
+					$tables[$a][2] = str_replace( $caption[0] , '' , $tables[$a][2] );
+				}
+
+
+				if( preg_match_all(
+					 self::ROW_REGEX
+					,$matches[2]
+					,$rows
+					,PREG_SET_ORDER)
+				  ) {
+					for( $a = 0 ; $a < count($rows) ; $a += 1 ) {
+						if( preg_match_all(
+							 self::CELL_REGEX
+							,$rows[$a]
+							,$cells
+							,PREG_SET_ORDER
+						  ) ) {
+							$tmp = array();
+							for( $b = 0 ; $b < count($cells) ; $b += 1 ) {
+								$tmp[] = $cells[$b][2];
+							}
+							$table['rows'][] = $tmp;
+						}
+					}
+				}
+				$this->tables[] = $table;
+			}
+		}
 	}
 
 
-	public function clean_tables($html) {
-		if( !is_string($html) ) {
-			throw get_class($this).'::clean_tables() expects only parameter $html to be a string. '.gettype($html).' given!';
+	public function get_table() {
+		if( !empty($this->tables) ) {
+			return array_shift($this->tables);
+		} else {
+			return false;
 		}
-
-		return preg_replace_callback(
-			 self::TABLE_REGEX
-			,array($this, 'CLEAN_TABLES_CALLBACK')
-			,$html
-		);
 	}
 
 
@@ -54,42 +94,6 @@ class tableClean implements iTableClean {
 	// START: protected methods
 
 
-	protected function CLEAN_TABLES_CALLBACK($matches) {
-		$table_array = array();
-
-		if( preg_match(self::SUMMARY_REGEX,$matches[1],$summary) ) {
-			$this->view->set_summary($summary[2], true);
-		}
-
-		if( preg_match(self::CAPTION_REGEX,$matches[2],$caption) ) {
-			$this->view->set_caption($caption[1], true);
-			$matches[2] = str_replace( $caption[0] , '' , $matches[2] );
-		}
-
-		if( preg_match_all(
-			 self::ROW_REGEX
-			,$matches[2]
-			,$rows
-			,PREG_SET_ORDER)
-		  ) {
-			for( $a = 0 ; $a < count($rows) ; $a += 1 ) {
-				if( preg_match_all(
-					 self::CELL_REGEX
-					,$rows[$a]
-					,$cells
-					,PREG_SET_ORDER
-				  ) ) {
-					$tmp = array();
-					for( $b = 0 ; $b < count($cells) ; $b += 1 ) {
-						$tmp[] = $cells[$b][2];
-					}
-					$table_array[] = $tmp;
-				}
-			}
-			return $this->view->render_table($table_array);
-		}
-		return $this->matches[0];
-	}
 
 
 

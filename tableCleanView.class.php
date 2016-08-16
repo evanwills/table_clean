@@ -1,28 +1,32 @@
 <?php
 
-class tableCleanView implements iTableCleanView {
+class tableCleanView {
+
+	protected static $table_count = 0;
 
 	// ==============================================================
 	// START: properties
 
 
-	protected $table_class = '';
-	protected $thead_class = '';
-	protected $tbody_class = '';
-	protected $tfoot_class = '';
+	protected $table_classes = '';
+	protected $thead_classes = '';
+	protected $tbody_classes = '';
+	protected $tfoot_classes = '';
 
-	protected $table_caption = '';
-	protected $table_summary = '';
-
-	protected $override_caption = '';
-	protected $override_summary = '';
+	protected $caption = '';
+	protected $summary = '';
 
 	protected $last_row_is_footer = false;
+	protected $first_row_is_header = true;
+	protected $auto_generate_summary_stats = false;
+	protected $table_has_borders = false;
+	protected $table_is_striped = false;
+	protected $use_row_header = true;
+
 	protected $column_classes = array();
 	protected $rows_classes = array();
 	protected $col_count = 0;
 
-	protected $table_count = 0;
 	protected $table_ID = '';
 
 
@@ -31,13 +35,54 @@ class tableCleanView implements iTableCleanView {
 	// START: public methods
 
 
-	public function render_tables( $table_array ) {
-		if( !is_array($table_array) ) {
-			throw get_class($this).'::render_tables() expects only parameter $table_array to be a array. '.gettype($table_array).' given!';
+	public function __construct( $table_config ) {
+
+		if( !is_array($table_config) ) {
+			throw  new Exception(get_class($this).'::__construct() expects only parameter $table_config to be an array. '.gettype($table_config).' given!');
 		}
 
-		$this->table_count += 1;
-		$this->table_ID = "T{$this->table_count}_";
+		self::$table_count += 1;
+		$this->table_ID = 'T' . self::$table_count . '_';
+
+		foreach( $table_config as $key => $value ) {
+			if( !property_exists($this,$key) ) {
+				throw  new Exception(get_class($this).'::__construct() expects only parameter $table_config to be an array containing valid config properties. "'.$key.'" is not a valid config property');
+			}
+			if( gettype($this->$key) !== gettype($value) ) {
+				throw  new Exception(get_class($this).'::__construct() expects $table_config['.$key.'] to be '.gettype($this->$key).'. '.gettype($value).' given');
+			}
+
+			if( is_bool($value) ) {
+				$this->$key = $value;
+			}
+			elseif( strlen($key) > 8 && substr($key, -8, 8) === '_classes' ) {
+				if( is_string($value) ) {
+					$this->set_string_classes($key,$value);
+				} else {
+					$this->set_array_classes($key,$value);
+				}
+			} else {
+				$func = 'sanitise_'.$key;
+				$this->$key = $this->$func($value);
+			}
+		}
+	}
+
+
+	public function render_table( $table_array ) {
+		if( !is_array($table_array) ) {
+			throw  new Exception(get_class($this).'::render_tables() expects only parameter $table_array to be an array. '.gettype($table_array).' given!');
+		}
+		if( !isset($table_array['summary']) && !isset($table_array['caption']) && !isset($table_array['rows']) && !isset($table_array['tfoot']) ) {
+			throw  new Exception(get_class($this).'::render_tables() expects only parameter $table_array to be an array with the following key/value pairs: "summary", "caption", "rows" & "tfoot"');
+		}
+		if( !is_array($table_array['rows']) ) {
+			throw  new Exception(get_class($this).'::render_tables() expects $table_array[rows] to be an array. '.gettype($table_array['rows']).' given!');
+
+		}
+		if( !is_string($table_array['summary']) && !is_string($table_array['caption']) && !is_string($table_array['tfoot']) ) {
+			throw  new Exception(get_class($this).'::render_tables() expects $table_array[summary], $table_array[caption] & $table_array[tfoot]to be strings.');
+		}
 
 		$footer = array();
 		if( $this->last_row_is_footer === true ) {
@@ -47,87 +92,31 @@ class tableCleanView implements iTableCleanView {
 		if( $this->table_classes !== '' ) {
 			$output .= ' class="'.$this->table_classes.'"';
 		}
-		$output .=	 $this->render_summary()
+		$output .=	 $this->render_summary( $table_array['summary'] , count($table_array[0]) , count($table_array) )
 					.'>'
-					.$this->render_caption()
-					.$this->render_thead(array_shift($table_array))
-					.$this->render_tfoot($footer);
+					.$this->render_caption( $table_array['caption'] )
+					.$this->render_thead( $table_array['rows'] )
+					.$this->render_tfoot( $footer , $table_array['tfoot'] , $table_array['rows'] );
 
 		$output .= '<tbody>';
-		for( $a = 0 ; $a < count($able_array) ; $a += 1 ) {
+		for( $a = 0 ; $a < count($table_array) ; $a += 1 ) {
 			$output .= $this->render_row($table_array[$a]);
 		}
 		$output .= '</tbody></table>';
 
+
 		return $output;
 	}
 
-
-	public function set_classes($element, $classes) {
-		if( !is_string($element) ) {
-			throw get_class($this).'::set_classes() expects first parameter $element to be a string. '.gettype($element).' given!';
+	public function get_property($prop) {
+		if( !is_string($prop) ) {
+			throw  new Exception(get_class($this).'::get_property() expects only parameter $prop to be a string. '.gettype($prop).' given!');
 		}
-		$prop .= '_classes';
+
 		if( !property_exists($this,$prop) ) {
-			throw get_class($this).'::set_classes() expects first parameter $element to be a string matching: "table", "thead", "tbody", "tfoot", "column" or "row". "'.$element.'" given';
+			throw  new Exception(get_class($this).'::get_property() expects first parameter $prop valid tableCleanView property.');
 		}
-		if( gettype($classes) !== gettype($this->$prop)) {
-			throw get_class($this).'::set_classes() expects second parameter $classes to be a '.gettype($this->prop).' variable. '.gettype($classes).' given';
-		}
-
-		if( $element === 'columns' || $element === 'rows' ) {
-			$this->set_array_classes($element, $classes);
-		} else {
-			$this->set_string_classes($element, $classes);
-		}
-	}
-
-
-	public function get_classes($element) {
-		if( !is_string($element) ) {
-			throw get_class($this).'::get_classes() expects first parameter to be a string. '.gettype($element).' given!';
-		}
-		$prop .= '_classes';
-		if( !property_exists($this,$prop) ) {
-			throw get_class($this).'::get_classes() expects first parameter string matching: "table", "thead", "tbody", "tfoot", "column" or "row". "'.$element.'" given';
-		}
-		return $this->$element;
-	}
-
-
-	public function set_summary($input, $override = false) {
-		if( !is_string($input) ) {
-			throw get_class($this).'::set_summary() expects only parameter $input to be a string. '.gettype($input).' given!';
-		}
-		$prop = 'table_summary';
-		if( $override === true ) {
-			$prop = 'override_summary';
-		}
-		$this->$prop = trim(
-			str_replace(
-				 array('"',"'")
-				,''
-				,strip_tags($input)
-			)
-		);
-	}
-
-
-	public function set_caption($input, $override = false) {
-		if( !is_string($input) ) {
-			throw get_class($this).'::set_caption() expects only parameter $input to be a string. '.gettype($input).' given!';
-		}
-		$prop = 'table_caption';
-		if( $override === true ) {
-			$prop = 'override_caption';
-		}
-		$this->$prop = trim(
-			preg_replace(
-				 '`<(script|style)[^>]*>.*?</\1>`is'
-				,''
-				,$input
-			)
-		);
+		return $this->$prop;
 	}
 
 
@@ -138,93 +127,79 @@ class tableCleanView implements iTableCleanView {
 	// START: protected methods
 
 
+	// --------------------------------------------------------------
+	// START: render methods
 
 
-	protected function set_array_classes($element, $classes) {
-		for( $a = 0 ; $a < count($classes) ; $a += 1 ) {
-			if( is_bool($classes[$a]) ) {
-				$this->$element[] = $classes[$a];
-			} elseif( $classes[$a] == 0 ) {
-				$this->$element[] = false;
-			} elseif( $classes[$a] == 1 || $classes[$a] == '' ) {
-				$this->$element[] = true;
-			} elseif( is_string($classes[$a]) ) {
-				$tmp = $this->validate_classes_string($classes[$a]);
-				if( $tmp === '' ) {
-					throw get_class($this).'::set_classes() second parameter $classes to be an array containing only valid HTML class names. $classes['.$a.'] ("'.$classes[$a].'") contains invalid class names';
-				}
-				$this->$element[] = $tmp;
-			} else {
-				throw get_class($this).'::set_classes() second parameter $classes to be an array containing only boolean or string values. $classes['.$a.'] is a '.gettype($classes[$a]);
-			}
+	protected function render_caption($caption) {
+		$caption = $this->sanitise_caption($caption);
+		if( $caption === '' ) {
+			$caption = $this->caption;
 		}
-	}
-
-
-	protected function set_string_classes($element, $classes) {
-		$tmp = $this->validate_classes_string($classes);
-		if( $tmp === '' ) {
-			throw get_class($this).'::set_classes() second parameter $classes to be an string containing only valid HTML class names. "'.$classes.'" contains invalid class names';
-		}
-		$this->$element = $tmp;
-	}
-
-
-	protected function validate_classes_string($input) {
-		$input = trim($input);
-		$input = preg_split('`\s+`', $input, PREG_SPLIT_NO_EMPTY);
-		if( empty($input) ) {
-			return '';
-		}
-		for( $a = 0 ; $a < count($input) ; $a += 1 ) {
-			if( !preg_match( '`^[a-z][a-z0-9_\-]+$`i', $input[$a] ) ) {
-				return '';
-			}
-		}
-		return implode(' ', $input);
-	}
-
-
-	protected function render_caption() {
 		$output = '';
-		if( $this->table_caption !== '' ) {
-			$output .= '<caption>This table contains '.count($table_array[0]).' columns and '.count($table_array).' rows. '.$this->table_caption.'</caption>'
+		if( $caption !== '' ) {
+			$output .= '<caption>'.$caption.'</caption>';
 		}
 		return $output;
 	}
 
 
-	protected function render_thead($header) {
+	protected function render_summary( $summary , $cols , $rows ) {
+		$summary = $this->sanitise_summary($summary);
+		if( $summary === '' ) {
+			$summary = $this->summary;
+		}
+		if( $this->auto_generate_summary_stats === true ) {
+			$summary = 'This table has '.$cols.' columns and '.$rows.' rows. '.$summary
+		}
+		$output = '';
+		if( $summary !== '' ) {
+			$output .= ' summary="'.$summary.'"';
+		}
+		return $output;
+	}
+
+
+	protected function render_thead(&$table_array) {
 		$this->col_count = count($header);
 
-		$output = '<thead';
-		if( $this->thead_classes !== '' ) {
-			$output .= ' class="'.$this->thead.'"';
-		}
-		$output .= '><tr>';
-		for( $a = 0 ; $a < count($headers) ; $a += 1 ) {
-			$headers[$a] = trim($headers[$a]);
-			if( $headers[$a] !== '' )
-			{
-				if( $this->column_classes[$a] === true ) {
-					$this->column_classes[$a] = $this->css_safe($header[$a]);
-				}
-				$output .= '<th id="'.$this->$table_ID.'h'.$a.'"'.$this->get_cell_classes($a).'>'.$headers[$a].'</th>';
-			} else {
-				$output .= '<td>&nbsp;</td>';
+		$output = '';
+		if( $this->first_row_is_header !== false ) {
+
+			$header = array_shift($table_array);
+
+			$output = '<thead';
+			if( $this->thead_classes !== '' ) {
+				$output .= ' class="'.$this->thead_classes.'"';
 			}
+			$output .= '><tr>';
+
+			for( $a = 0 ; $a < count($headers) ; $a += 1 ) {
+				$headers[$a] = trim($headers[$a]);
+				if( $headers[$a] !== '' )
+				{
+					if( $this->column_classes[$a] === true ) {
+						$this->column_classes[$a] = $this->sanitise_class_name($header[$a]);
+					}
+					$output .= '<th id="'.$this->$table_ID.'h'.$a.'"'.$this->get_cell_classes($a).'>'.$headers[$a].'</th>';
+				} else {
+					$output .= '<td>&nbsp;</td>';
+				}
+			}
+
+			$output .= '</tr></thead>';
 		}
-		$output .= '</tr></thead>';
+
 		return $output;
 	}
 
 
-	protected function render_tfoot($footer) {
+	protected function render_tfoot($footer , $tfoot , $table_array) {
 		$output = '';
 		if( !empty($footer) ) {
 			$output .= '<tfoot';
 			if( $this->tfoot_classes !== '' ) {
-				$output .= ' class="'.$this->tfoot.'"';
+				$output .= ' class="'.$this->tfoot_classes.'"';
 			}
 			$output .= '><tr>';
 			$z = 0;
@@ -258,15 +233,21 @@ class tableCleanView implements iTableCleanView {
 		if( !empty($row) ) {
 			$z = 0;
 
-			if( isset($this->row_classes[$i]) && $this->row_classes[$i] !== false && ->row_classes[$i] !== '' ) {
-				$output = '<tr class="'.$this->row_classes[$i].'">';
-			} else {
-				$output = '<tr>';
+			$output = '<tr';
+			if( isset($this->row_classes[$i]) && $this->row_classes[$i] !== false ) {
+				$output .= ' class="';
+				if( $this->row_classes[$i] === true ) {
+					$output .= $this->sanitise_class_name($row[0]);
+				} else if( is_string($this->row_classes[$i])  && $this->row_classes[$i] !== '' ) {
+					$output .= $this->row_classes[$i];
+				}
+				$output .= '"';
 			}
+			$output .= '>';
 
 			$rowID = '';
 
-			if( $this->no_row_header === false ) {
+			if( $this->use_row_header !== false ) {
 				$rowID = $this->$table_ID.'r'.$i;
 				$output .= '<th id="'.$rowID.'"'.$this->get_cell_headers(0).$this->get_cell_classes(0).'>'.$row[0].'</th>';
 				$z = 1;
@@ -287,18 +268,110 @@ class tableCleanView implements iTableCleanView {
 		return $output;
 	}
 
-	protected function render_summary() {
-		$output = '';
-		if( $this->override_summary !== '' ) {
-			$output = $this->override_summary;
-		} elseif( $this->table_summary !== '' ) {
-			$output = $this->table_summary;
-		}
-		if( $output !== '' ) {
-			$output = ' summary="'.$output.'"';
-		}
-		return $output;
+
+	//  END:  render methods
+	// --------------------------------------------------------------
+	// START: sanitise methods
+
+
+	protected function sanitise_caption($input) {
+		return trim(
+			preg_replace(
+				 '`<(script|style)[^>]*>.*?</\1>`is'
+				,''
+				,$input
+			)
+		);
 	}
+
+
+	protected function sanitise_summary($input) {
+		return trim(
+			str_replace(
+				 array('"',"'")
+				,''
+				,strip_tags($input)
+			)
+		);
+	}
+
+
+	protected function sanitise_class_name($input) {
+		$input = preg_replace(
+			 array( '`[^a-z0-9_\-]+`i' , '`^[^a-z]+`i' , '`_?-_?`' )
+			,array( '_' , '' , '-' )
+			,trim($input)
+		);
+
+		if( $input === '' ) {
+			return false;
+		} else {
+			return $input;
+		}
+	}
+
+
+	protected function sanitise_classes_string($input) {
+		$input = trim($input);
+		$input = preg_split('`\s+`', $input, PREG_SPLIT_NO_EMPTY);
+		if( empty($input) ) {
+			return '';
+		}
+		$output = array();
+		for( $a = 0 ; $a < count($input) ; $a += 1 ) {
+			$input[$a] = $this->sanitise_class_name($input[$a]);
+			if( $input[$a] !== '' && $input[$a] !== false ) {
+				$output[] = $input[$a];
+			}
+		}
+		return implode(' ', $output);
+	}
+
+
+
+	//  END:  sanitise methods
+	// --------------------------------------------------------------
+	// START: set methods
+
+
+
+	protected function set_array_classes($element, $classes) {
+		for( $a = 0 ; $a < count($classes) ; $a += 1 ) {
+			if( is_bool($classes[$a]) ) {
+				$this->$element[] = $classes[$a];
+			} elseif( $classes[$a] == 0 ) {
+				$this->$element[] = false;
+			} elseif( $classes[$a] == 1 || $classes[$a] == '' ) {
+				$this->$element[] = true;
+			} elseif( is_string($classes[$a]) ) {
+				$tmp = $this->sanitise_classes_string($classes[$a]);
+				if( $tmp === '' ) {
+					throw  new Exception(get_class($this).'::set_classes() second parameter $classes to be an array containing only valid HTML class names. $classes['.$a.'] ("'.$classes[$a].'") contains invalid class names');
+				}
+				$this->$element[] = $tmp;
+			} else {
+				throw  new Exception(get_class($this).'::set_classes() second parameter $classes to be an array containing only boolean or string values. $classes['.$a.'] is a '.gettype($classes[$a]));
+			}
+		}
+	}
+
+
+	protected function set_string_classes($element, $classes) {
+		$tmp = $this->sanitise_classes_string($classes);
+		if( $tmp === '' ) {
+			throw  new Exception(get_class($this).'::set_classes() second parameter $classes to be an string containing only valid HTML class names. "'.$classes.'" contains invalid class names');
+		}
+		$this->$element = $tmp;
+	}
+
+
+
+	//  END:  set methods
+	// --------------------------------------------------------------
+	// START: get methods
+
+
+
 
 	protected function get_colspan($i , $cell_c ) {
 		$i += 1;
@@ -323,19 +396,10 @@ class tableCleanView implements iTableCleanView {
 	}
 
 
-	protected function css_safe($input) {
-		$input = preg_replace(
-			 array( '`[^a-z0-9_\-]+`i' , '`^[^a-z]+`i' , '`_?-_?`' )
-			,array( '_' , '' , '-' )
-			,trim($input)
-		);
 
-		if( $input === '' ) {
-			return false;
-		} else {
-			return $input;
-		}
-	}
+	//  END:  get methods
+	// --------------------------------------------------------------
+
 
 
 	//  END:  protected methods
