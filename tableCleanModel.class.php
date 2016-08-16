@@ -28,27 +28,27 @@ class tableClean {
 
 		if( preg_match_all( self::TABLE_REGEX , $html , $tables , PREG_SET_ORDER ) ) {
 			for( $a = 0 ; $a < count($tables) ; $a += 1 ) {
-				$caption = '',
-				$summary = '',
-				$tfoot = '',
-				$rows = array(),
-				$find = $tables[$a][0]
+				$caption = '';
+				$summary = '';
+				$tfoot = '';
+				$rows = array();
+				$find = $tables[$a][0];
 
 				if( preg_match( self::SUMMARY_REGEX , $tables[$a][1] , $matched_summary ) ) {
 					$summary = $matched_summary[2];
-					unset($matched_summary)
+					unset($matched_summary);
 				}
 
 				if( preg_match( self::TFOOT_REGEX , $tables[$a][2] , $matched_tfoot ) ) {
 					$tfoot = $matched_tfoot[1];
 					$tables[$a][2] = str_replace( $matched_tfoot[0] , '' , $tables[$a][2] );
-					unset($matched_tfoot)
+					unset($matched_tfoot);
 				}
 
 				if( preg_match( self::CAPTION_REGEX , $tables[$a][2] , $matched_caption ) ) {
 					$caption = $matched_caption[1];
 					$tables[$a][2] = str_replace( $matched_caption[0] , '' , $tables[$a][2] );
-					unset($matched_caption)
+					unset($matched_caption);
 				}
 
 

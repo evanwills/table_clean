@@ -137,7 +137,7 @@ class tableCleanView {
 			$summary = $this->summary;
 		}
 		if( $this->auto_generate_summary_stats === true ) {
-			$summary = 'This table has '.$cols.' columns and '.$rows.' rows. '.$summary
+			$summary = 'This table has '.$cols.' columns and '.$rows.' rows. '.$summary;
 		}
 		$output = '';
 		if( $summary !== '' ) {
@@ -203,7 +203,6 @@ class tableCleanView {
 
 			if( $this->no_row_header === false ) {
 				$row_ID = $this->$table_ID.'r'.$i;
-				if()
 				$output .= '<th id="'.$row_ID.'" headers="'.$this->$table_ID.'h0"'.$this->get_cell_classes(0).'>'.$row[0].'</th>';
 				$z = 1;
 			}
@@ -348,17 +347,17 @@ class tableCleanView {
 	protected function set_array_classes($element, $classes) {
 		for( $a = 0 ; $a < count($classes) ; $a += 1 ) {
 			if( is_bool($classes[$a]) ) {
-				$this->$element[] = $classes[$a];
+				$this->{$element}[] = $classes[$a];
 			} elseif( $classes[$a] == 0 ) {
-				$this->$element[] = false;
+				$this->{$element}[] = false;
 			} elseif( $classes[$a] == 1 || $classes[$a] == '' ) {
-				$this->$element[] = true;
+				$this->{$element}[] = true;
 			} elseif( is_string($classes[$a]) ) {
 				$tmp = $this->sanitise_classes_string($classes[$a]);
 				if( $tmp === '' ) {
 					throw  new Exception(get_class($this).'::set_classes() second parameter $classes to be an array containing only valid HTML class names. $classes['.$a.'] ("'.$classes[$a].'") contains invalid class names');
 				}
-				$this->$element[] = $tmp;
+				$this->{$element}[] = $tmp;
 			} else {
 				throw  new Exception(get_class($this).'::set_classes() second parameter $classes to be an array containing only boolean or string values. $classes['.$a.'] is a '.gettype($classes[$a]));
 			}
