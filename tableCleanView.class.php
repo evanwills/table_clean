@@ -65,7 +65,9 @@ class tableCleanView {
 				}
 			} else {
 				$func = 'sanitise_'.$key;
-				$this->$key = $this->$func($value);
+				if( method_exists($this,$func) ) {
+					$this->$key = $this->$func($value);
+				}
 			}
 		}
 	}
