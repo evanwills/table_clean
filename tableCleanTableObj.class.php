@@ -12,10 +12,10 @@ class tableCleanTableObj {
 
 	public function __construct( $find , $rows , $summary = '' , $caption = '' , $tfoot ) {
 		if( !is_string($find) || trim($find) === '' ) {
-			throw new Exception('tableCleanTableModel::__construct() expects first parameter $find to be a non empty string.');
+			throw new Exception('tableCleanTableModel::__construct() expects first parameter $find to be a non empty string. ' . gettype($find) . ' given');
 		}
 		if( !is_array($rows) || empty($rows) ) {
-			throw new Exception('tableCleanTableModel::__construct() expects second parameter $rows to be a non empty array.');
+			throw new Exception('tableCleanTableModel::__construct() expects second parameter $rows to be a non empty array. '.gettype($rows).' given');
 		}
 		if( !is_string($summary) ) {
 			throw new Exception('tableCleanTableModel::__construct() expects third parameter $summary to be a string. '. gettype($summary). ' given' );
