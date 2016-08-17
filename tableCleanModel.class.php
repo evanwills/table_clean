@@ -58,20 +58,22 @@ class tableCleanModel {
 					,$matched_rows
 					,PREG_SET_ORDER)
 				  ) {
-					for( $a = 0 ; $a < count($rows) ; $a += 1 ) {
+					for( $b = 0 ; $b < count($matched_rows) ; $b += 1 ) {
 						if( preg_match_all(
 							 self::CELL_REGEX
-							,$matched_rows[$a]
+							,$matched_rows[$b][1]
 							,$cells
 							,PREG_SET_ORDER
 						  ) ) {
 							$tmp = array();
-							for( $b = 0 ; $b < count($cells) ; $b += 1 ) {
-								$tmp[] = $cells[$b][2];
+							for( $c = 0 ; $c < count($cells) ; $c += 1 ) {
+								$tmp[] = $cells[$c][2];
 							}
 							$rows[] = $tmp;
 						}
 					}
+				} else {
+					throw new Exception( self::ROW_REGEX .' did not match anything in "' .$tables[$a][2]. '"');
 				}
 				$this->tables[] = new tableCleanTableObj($find,$rows,$summary,$caption,$tfoot);
 			}
