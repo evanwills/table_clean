@@ -54,7 +54,7 @@ class tableCleanModel {
 
 				if( preg_match_all(
 					 self::ROW_REGEX
-					,$matches[2]
+					,$tables[$a][2]
 					,$matched_rows
 					,PREG_SET_ORDER)
 				  ) {
