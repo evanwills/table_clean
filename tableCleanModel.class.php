@@ -6,6 +6,7 @@ class tableCleanModel {
 	// START: properties
 
 	protected $tables = array();
+	protected $total_tables = 0;
 
 	const TABLE_REGEX = '`<table([^<]*)>(.*?)</table>`is';
 	const ROW_REGEX = '`<tr[^<]*>(.*?)</tr>`is';
@@ -72,12 +73,11 @@ class tableCleanModel {
 							$rows[] = $tmp;
 						}
 					}
-				} else {
-					throw new Exception( self::ROW_REGEX .' did not match anything in "' .$tables[$a][2]. '"');
 				}
 				$this->tables[] = new tableCleanTableObj($find,$rows,$summary,$caption,$tfoot);
 			}
 		}
+		$this->total_tables = count($tables);
 	}
 
 
@@ -90,8 +90,16 @@ class tableCleanModel {
 	}
 
 
-	public function get_table_count() {
+	public function get_total_tables() {
+		return $this->total_table);
+	}
+
+	public function get_tables_left_count() {
 		return count($this->tables);
+	}
+
+	public function get_current_table_index() {
+		return $this->total_tables - count($this->tables);
 	}
 
 
