@@ -13,6 +13,6 @@ class tableCleanModel_test extends PHPUnit_Framework_TestCase {
 	public function testConstructorAcceptsHTML() {
 		$model = new tableCleanModel(file_get_contents($this->sample));
 
-		$this->assetEquals(24, $model->get_table_count());
+		$this->assertEquals(24, $model->get_table_count());
 	}
 }
