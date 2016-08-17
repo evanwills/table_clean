@@ -88,6 +88,9 @@ class tableClean {
 	}
 
 
+	public function get_table_count() {
+		return count($this->tables);
+	}
 
 
 	//  END:  public methods
