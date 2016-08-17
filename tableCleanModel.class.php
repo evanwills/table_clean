@@ -91,7 +91,7 @@ class tableCleanModel {
 
 
 	public function get_total_tables() {
-		return $this->total_table);
+		return $this->total_tables;
 	}
 
 	public function get_tables_left_count() {
