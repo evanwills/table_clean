@@ -30,6 +30,8 @@ class tableCleanView {
 	protected $row_count = 0;
 
 	protected $table_ID = '';
+	protected $table = null;
+
 
 
 	//  END:  properties
@@ -75,22 +77,29 @@ class tableCleanView {
 
 	public function render_table( tableCleanTableObj $table ) {
 
+		$this->table = $table;
+		$this->col_count = $table->get_col_count();
+		$this->row_count = $table->get_row_count();
+
 		$output = '<table';
 		if( $this->table_classes !== '' ) {
 			$output .= ' class="'.$this->table_classes.'"';
 		}
-		$output .=	 $this->render_summary( $table->get_summary() , $table->get_col_count() , $table->get_row_count() )
+		$output .=	 $this->render_summary()
 					.'>'
-					.$this->render_caption( $table->get_caption() )
-					.$this->render_thead( $table )
-					.$this->render_tfoot( $table->get_tfoot() , $table );
+					.$this->render_caption()
+					.$this->render_thead()
+					.$this->render_tfoot();
 
 		$output .= '<tbody>';
-		while( $row = $table->get_next_row() ) {
+		while( $row = $this->table->get_next_row() ) {
 			$output .= $this->render_row($row);
 		}
 		$output .= '</tbody></table>';
 
+		$this->col_count = 0;
+		$this->row_count = 0;
+		$this->table = null;
 
 		return $output;
 	}
@@ -118,10 +127,12 @@ class tableCleanView {
 	// START: render methods
 
 
-	protected function render_caption($caption) {
-		$caption = $this->sanitise_caption($caption);
+	protected function render_caption() {
+		$caption = $this->sanitise_caption($this->table->get_caption());
 		if( $caption === '' ) {
 			$caption = $this->caption;
+		} else {
+			$this->caption = $caption;
 		}
 		$output = '';
 		if( $caption !== '' ) {
@@ -131,13 +142,15 @@ class tableCleanView {
 	}
 
 
-	protected function render_summary( $summary , $cols , $rows ) {
-		$summary = $this->sanitise_summary($summary);
+	protected function render_summary() {
+		$summary = $this->sanitise_summary($this->table->get_summary());
 		if( $summary === '' ) {
 			$summary = $this->summary;
+		} else {
+			$this->summary = $summary;
 		}
 		if( $this->auto_generate_summary_stats === true ) {
-			$summary = 'This table has '.$cols.' columns and '.$rows.' rows. '.$summary;
+			$summary = 'This table has '.$this->col_count.' columns and '.$this->row_count.' rows. '.$summary;
 		}
 		$output = '';
 		if( $summary !== '' ) {
@@ -147,13 +160,13 @@ class tableCleanView {
 	}
 
 
-	protected function render_thead( $table ) {
-		$this->col_count = count($header);
+	protected function render_thead() {
 
 		$output = '';
 		if( $this->first_row_is_header !== false ) {
 
-			$header = $table->get_next_row();
+			$headers = $this->table->get_next_row();
+			$headers = $this->sanitise_cell($headers);
 
 			$output = '<thead';
 			if( $this->thead_classes !== '' ) {
@@ -161,14 +174,16 @@ class tableCleanView {
 			}
 			$output .= '><tr>';
 
-			for( $a = 0 ; $a < count($headers) ; $a += 1 ) {
+			$col_count = $this->table->get_col_count();
+
+			for( $a = 0 ; $a < $col_count ; $a += 1 ) {
 				$headers[$a] = trim($headers[$a]);
 				if( $headers[$a] !== '' )
 				{
-					if( $this->column_classes[$a] === true ) {
+					if( isset($this->column_classes[$a]) && $this->column_classes[$a] === true ) {
 						$this->column_classes[$a] = $this->sanitise_class_name($header[$a]);
 					}
-					$output .= '<th id="'.$this->$table_ID.'h'.$a.'"'.$this->get_cell_classes($a).'>'.$headers[$a].'</th>';
+					$output .= '<th id="'.$this->table_ID.'h'.$a.'"'.$this->get_cell_classes($a).'>'.$headers[$a].'</th>';
 				} else {
 					$output .= '<td>&nbsp;</td>';
 				}
@@ -181,18 +196,19 @@ class tableCleanView {
 	}
 
 
-	protected function render_tfoot($tfoot , $table) {
+	protected function render_tfoot() {
 		$output = '';
 
-		if( $tfoot !== '' ) {
-			$footer = $tfoot;
-		} elseif( $this->last_row_is_footer === true ) {
-			$footer = $table->get_last_row();
-		} else {
+		$footer = $this->table->get_tfoot();
+		if( $footer === '' && $this->last_row_is_footer === true ) {
+			$footer = $this->table->get_last_row();
+		}
+		if( $footer === '' ) {
 			$footer = $this->tfoot;
 		}
 
 		if( $footer !== '' ) {
+			$footer = $this->sanitise_cell($footer);
 			$output .= '<tfoot';
 			if( $this->tfoot_classes !== '' ) {
 				$output .= ' class="'.$this->tfoot_classes.'"';
@@ -201,20 +217,20 @@ class tableCleanView {
 			$z = 0;
 			$row_ID = '';
 
-			if( $this->no_row_header === false ) {
-				$row_ID = $this->$table_ID.'r'.$i;
-				$output .= '<th id="'.$row_ID.'" headers="'.$this->$table_ID.'h0"'.$this->get_cell_classes(0).'>'.$row[0].'</th>';
+			if( $this->use_row_header !== false ) {
+				$row_ID = $this->table_ID.'-tfoot';
+				$output .= '<th id="'.$row_ID.'" headers="'.$this->table_ID.'h0"'.$this->get_cell_classes(0).'>'.$footer[0].'</th>';
 				$z = 1;
 			}
 
-			$c = count($row);
+			$c = count($footer);
 			for( $a = $z ; $a < $c ; $a += 1 ) {
 				$output .= '<td'
 						.$this->get_cell_headers( $a , $row_ID )
 						.$this->get_cell_classes($a)
 						.$this->get_colspan( $a , $c )
 						.'>'
-						.trim($row[$a])
+						.trim($footer[$a])
 						.'</td>';
 			}
 			$output .= '</tr></tfoot>';
@@ -232,7 +248,7 @@ class tableCleanView {
 			$row_ID = '';
 			$z = 0;
 
-			$row = $this->sanitise_row($row);
+			$row = $this->sanitise_cell($row);
 
 			$output = '<tr';
 			if( isset($this->row_classes[$i]) && $this->row_classes[$i] !== false ) {
@@ -248,7 +264,7 @@ class tableCleanView {
 
 
 			if( $this->use_row_header !== false ) {
-				$row_ID = $this->$table_ID.'r'.$i;
+				$row_ID = $this->table_ID.'r'.$i;
 				$output .= '<th id="'.$row_ID.'"'.$this->get_cell_headers(0).$this->get_cell_classes(0).'>'.$row[0].'</th>';
 				$z = 1;
 			}
@@ -332,8 +348,40 @@ class tableCleanView {
 	 * @param  array $row cells in the given row
 	 * @return array parsed cells
 	 */
-	protected function sanitise_row($row) {
-		return $row;
+	protected function sanitise_cell($row) {
+
+		$row = preg_replace(
+			 '`</?(span|strong|i|em|u|b|blockquote|aside|article|section|footer|header|hgroup)[^>]*>`is'
+			,''
+			,$row
+		);
+		return $this->sanitise_cell_inner($row);
+	}
+
+	protected function sanitise_cell_inner($input) {
+		return preg_replace_callback(
+			 '`^\s*<(div|p)[^>]*>(.*?)</\1>\s*(?:<\1[^>]*>(.*?)</\1>\s*)?$`is'
+			,array(
+				 $this
+				,'SANITISE_CELL_CALLBACK'
+			 )
+			,$input
+		);
+	}
+
+	protected function SANITISE_CELL_CALLBACK($matches) {
+		if( isset($matches[3]) ) {
+			if( $matches[1] === 'div') {
+				$matches[0] = str_replace(
+					 array( '<div' , '</div' )
+					,array( '<p' , '</p' )
+					,$matches[0]
+				);
+			}
+			return '<p>'.$this->sanitise_cell_inner($matches[2]).'</p><p>'.$this->sanitise_cell_inner($matches[3]).'</p>';
+		} else {
+			return trim($matches[2]);
+		}
 	}
 
 
@@ -401,7 +449,7 @@ class tableCleanView {
 		if( $row_ID !== '' ) {
 			$row_ID = trim($row_ID).' ';
 		}
-		return ' headers="'.$row_ID.$this->$table_ID.'h'.$i.'"';
+		return ' headers="'.$row_ID.$this->table_ID.'h'.$i.'"';
 	}
 
 

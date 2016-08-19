@@ -28,9 +28,9 @@ class tableCleanTableObj {
 		}
 		$this->find = $find;
 		$this->rows = $rows;
-		$this->summary = $summary;
-		$this->caption = $caption;
-		$this->tfoot = $tfoot;
+		$this->summary = trim($summary);
+		$this->caption = trim($caption);
+		$this->tfoot = trim($tfoot);
 
 		$this->row_count = count($this->rows);
 		$this->col_count = count($this->rows[0]);

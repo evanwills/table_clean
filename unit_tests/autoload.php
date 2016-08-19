@@ -15,11 +15,13 @@ spl_autoload_register(
 		$cn = strtolower($class);
 
 		if (isset($classes[$cn])) {
-	
+
 			require dirname(__FILE__) . '/../' . $classes[$cn];
 		}
 	},
 	true,
 	false
 );
+
+include('/var/www/includes/DO_NOT_INCLUDE_server_include_path.php');
 // @codeCoverageIgnoreEnd

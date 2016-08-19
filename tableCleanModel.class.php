@@ -99,7 +99,12 @@ class tableCleanModel {
 	}
 
 	public function get_current_table_index() {
-		return $this->total_tables - count($this->tables);
+		$c = count($this->tables);
+		if( $c === 0 ) {
+			return false;
+		} else {
+			return $this->total_tables - $c;
+		}
 	}
 
 
